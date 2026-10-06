@@ -1,0 +1,30 @@
+{
+  "name": "rat",
+  "private": true,
+  "version": "1.0.0",
+  "description": "RAT — Repo Analysis Tool. A web-app dashboard computing git repository metrics (file, directory, repository, commit-set and author metrics).",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c green,cyan \"npm run dev --workspace @rat/api\" \"npm run dev --workspace @rat/web\"",
+    "dev:api": "npm run dev --workspace @rat/api",
+    "dev:web": "npm run dev --workspace @rat/web",
+    "build": "npm run build --workspace @rat/api && npm run build --workspace @rat/web",
+    "start:api": "npm run start --workspace @rat/api",
+    "start:web": "npm run start --workspace @rat/web",
+    "test": "npm test --workspace @rat/api",
+    "typecheck": "npm run typecheck --workspace @rat/api && npm run typecheck --workspace @rat/web",
+    "fixture": "bash scripts/makeFixtureRepo.sh",
+    "verify": "tsx scripts/verifyMetrics.ts"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=18.18"
+  }
+}

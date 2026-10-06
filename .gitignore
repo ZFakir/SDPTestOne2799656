@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# RAT runtime storage (uploaded zips, cloned repos, SQLite DB)
+storage/
+
+# Build output
+dist/
+.next/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+
+# Test / coverage output
+coverage/
+.test-tmp/
+apps/api/.test-tmp/
+
+# OS noise
+.DS_Store
