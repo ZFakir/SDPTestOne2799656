@@ -1,0 +1,1 @@
+The process expects a `.env` file at either the repository root or the current working directory; `RAT_STORAGE_DIR` defaults to `./storage` relative to the repo root, which determines where `repos/`, `tmp/`, and `rat.db` are created.

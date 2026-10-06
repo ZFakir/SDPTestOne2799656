@@ -1,0 +1,1 @@
+Node.js + TypeScript (`tsx` shebang) for the oracle; POSIX bash for the fixture builder; relies on external tools `git`, `tar`, and `zip` being available on PATH.

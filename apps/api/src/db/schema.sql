@@ -98,6 +98,39 @@ CREATE TABLE IF NOT EXISTS repo_dirs (
   PRIMARY KEY (repo_id, path)
 );
 
+-- Materialized rollups over the fact table (the pre-computation tier).
+-- Built once when a repository becomes ready (and rebuilt on demand for
+-- databases seeded before the rollup tables existed). They serve unfiltered,
+-- unscoped queries only and must always match the query-time computations;
+-- filtered queries keep scanning the fact table.
+CREATE TABLE IF NOT EXISTS rollup_repo (
+  repo_id       TEXT PRIMARY KEY REFERENCES repositories(id) ON DELETE CASCADE,
+  commit_count  INTEGER NOT NULL,
+  first_ts      INTEGER,
+  last_ts       INTEGER,
+  added         INTEGER NOT NULL,
+  removed       INTEGER NOT NULL,
+  modifications INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS rollup_file (
+  repo_id       TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+  path          TEXT NOT NULL,
+  added         INTEGER NOT NULL,
+  removed       INTEGER NOT NULL,
+  modifications INTEGER NOT NULL,
+  PRIMARY KEY (repo_id, path)
+) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS rollup_day (
+  repo_id  TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+  day      TEXT NOT NULL,
+  commits  INTEGER NOT NULL,
+  added    INTEGER NOT NULL,
+  removed  INTEGER NOT NULL,
+  PRIMARY KEY (repo_id, day)
+) WITHOUT ROWID;
+
 CREATE INDEX IF NOT EXISTS idx_commits_repo_ts     ON commits (repo_id, ts);
 CREATE INDEX IF NOT EXISTS idx_commits_repo_ident  ON commits (repo_id, raw_ident_id);
 CREATE INDEX IF NOT EXISTS idx_file_stats_repo_path ON commit_file_stats (repo_id, path);

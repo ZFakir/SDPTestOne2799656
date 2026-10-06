@@ -1,0 +1,1 @@
+Standalone helper scripts that recover better-sqlite3 native bindings, build a deterministic fixture git repository, and independently re-derive RAT metrics from git to audit the API.

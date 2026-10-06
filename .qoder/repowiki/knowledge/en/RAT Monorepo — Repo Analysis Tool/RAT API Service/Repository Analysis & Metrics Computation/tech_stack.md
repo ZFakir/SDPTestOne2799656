@@ -1,0 +1,1 @@
+SQLite via `better-sqlite3` prepared statements with `db.transaction()` batching; external `git log` streamed through a custom `LogStreamParser` using Node streams; metric time buckets use SQLite's `strftime('%Y-W%W', ...)` for ISO week grouping.

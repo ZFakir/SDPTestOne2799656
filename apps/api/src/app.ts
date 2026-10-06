@@ -3,6 +3,7 @@ import express from 'express';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { authorsRouter } from './routes/authors';
 import { commitsRouter } from './routes/commits';
+import { compareRouter } from './routes/compare';
 import { jobsRouter } from './routes/jobs';
 import { metricsRouter } from './routes/metrics';
 import { pathsRouter } from './routes/paths';
@@ -30,6 +31,7 @@ export function createApp(services: Services): express.Express {
   app.use('/api/repositories', commitsRouter(services));
   app.use('/api/repositories', authorsRouter(services));
   app.use('/api/repositories', metricsRouter(services));
+  app.use('/api/metrics', compareRouter(services));
   app.use('/api/jobs', jobsRouter(services));
 
   app.use('/api', notFoundHandler);

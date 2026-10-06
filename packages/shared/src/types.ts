@@ -103,11 +103,33 @@ export interface RawIdentDTO {
   id: number;
   name: string;
   email: string;
+  /** Number of commits attributed to this raw identity. */
+  commitCount: number;
 }
 
 export interface AuthorsResponse {
   authors: AuthorIdentityDTO[];
   rawIdents: RawIdentDTO[];
+}
+
+/** A manually created canonical author (the author-merge tier). */
+export interface CanonicalAuthorDTO {
+  id: string;
+  name: string;
+  email: string;
+  /** Raw identities merged into this author. */
+  identIds: number[];
+}
+
+export interface CanonicalAuthorsResponse {
+  authors: CanonicalAuthorDTO[];
+}
+
+/** Request body for creating/updating a canonical author merge. */
+export interface CanonicalAuthorInput {
+  name: string;
+  email: string;
+  identIds: number[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -217,6 +239,24 @@ export interface ListResponse<T> {
 
 export interface RepositoriesResponse {
   repositories: RepositoryDTO[];
+}
+
+/* ------------------------------------------------------------------ */
+/* Multi-repository comparison                                         */
+/* ------------------------------------------------------------------ */
+
+/** One repository column of a comparison. */
+export interface CompareRepoDTO {
+  id: string;
+  name: string;
+  sourceType: RepoSourceType;
+  sourceRef: string;
+  headSha: string | null;
+  metrics: RepoMetricsDTO;
+}
+
+export interface CompareResponse {
+  repos: CompareRepoDTO[];
 }
 
 export interface ApiErrorBody {

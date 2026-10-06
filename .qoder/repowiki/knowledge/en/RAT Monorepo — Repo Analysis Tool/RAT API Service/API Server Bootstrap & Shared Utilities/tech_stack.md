@@ -1,0 +1,1 @@
+Express + cors + dotenv for HTTP bootstrapping; Node.js built-in `fs`/`path`; structured error model via a custom `AppError` class rather than generic exceptions.

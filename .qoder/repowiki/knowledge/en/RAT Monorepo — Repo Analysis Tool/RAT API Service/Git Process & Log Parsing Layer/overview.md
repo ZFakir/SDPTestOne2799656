@@ -1,0 +1,1 @@
+Low-level Git integration that spawns the git CLI with a safe, non-interactive environment and parses its log/numstat output into structured commit records.

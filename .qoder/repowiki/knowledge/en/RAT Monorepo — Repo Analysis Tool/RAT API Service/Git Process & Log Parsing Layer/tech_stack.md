@@ -1,0 +1,1 @@
+Node.js `child_process.spawn` for direct `git` invocation; SQLite via the shared `DB` type; custom line-oriented parsers using Unicode control characters (U+001E record separator, U+001F field separator) as delimiters instead of JSON.

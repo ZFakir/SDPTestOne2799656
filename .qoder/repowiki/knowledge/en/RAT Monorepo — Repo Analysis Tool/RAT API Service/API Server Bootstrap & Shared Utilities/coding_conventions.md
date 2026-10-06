@@ -1,0 +1,4 @@
+- Errors thrown across the HTTP boundary extend `AppError` and carry a machine-readable `code` string plus an HTTP `status`, produced via helper factories (`badRequest`, `notFound`, `conflict`, `payloadTooLarge`) in `util/errors.ts`.
+- Shared runtime dependencies are assembled once in `createServices` and passed as a `Services` object to every router, enabling test injection of mocked DB/git/ingest implementations.
+- Filesystem paths under the storage root are constructed through centralized helpers in `util/paths.ts` (`repoDir`, `zipSrcDir`, `mirrorDir`) rather than ad-hoc `path.join` calls in business code.
+- Zip extraction validates entries before use via `assertSafeEntryName` and `safeJoin`, rejecting absolute paths, drive letters, `..` segments, and symlinks to prevent path traversal.

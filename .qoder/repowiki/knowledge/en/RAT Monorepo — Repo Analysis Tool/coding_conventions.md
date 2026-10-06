@@ -1,0 +1,3 @@
+- Shared JSON contracts live exclusively in `packages/shared/src/types.ts` and are imported verbatim by both the API routes and the web API client.
+- Both apps inherit compiler settings from the root `tsconfig.base.json` (strict, ES2022, isolatedModules) rather than defining their own base config.
+- API error responses follow a uniform `{ code, message }` shape with domain-specific codes (e.g. REPO_NOT_FOUND, VALIDATION, DELETE_ACTIVE_JOB) consumed by the web's error handling.

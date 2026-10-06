@@ -1,0 +1,1 @@
+Orchestrates ingesting a Git repository from either an uploaded zip or a remote URL, validating it, analyzing commits, and finalizing the repo in the database.

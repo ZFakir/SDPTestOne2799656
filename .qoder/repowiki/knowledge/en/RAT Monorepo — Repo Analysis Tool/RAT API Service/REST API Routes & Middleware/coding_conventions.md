@@ -1,0 +1,5 @@
+- Route modules export a factory function taking `Services` and returning an Express `Router`, rather than exporting a pre-configured router instance.
+- Handlers obtain repository context through `requireReadyRepository(services, req.params.repoId)` instead of reading it directly from `services`.
+- Query parameters are parsed with the helpers in `middleware/validate.ts` (`optionalString`, `optionalInt`, `optionalEnum`, `pagingParams`) which throw `badRequest` on invalid input.
+- Errors thrown inside handlers are normalized by the central `errorHandler` middleware into `{ code, message }` JSON bodies using `AppError`, `MulterError`, or body-parser status codes.
+- Response objects are cast with TypeScript's `satisfies` against exported DTO types from `@rat/shared` to keep the wire format type-checked.

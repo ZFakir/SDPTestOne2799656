@@ -1,0 +1,1 @@
+Next.js 14 App Router with React 18, SWR for data fetching/caching, Recharts for metric visualizations, and the shared `@rat/shared` package (transpiled via Next config) for DTO type definitions.

@@ -1,0 +1,3 @@
+- Long-running operations report progress by calling `jobStore.start`/`setProgress`/`setPhase` with pre-defined phase constants and clamped fractions rather than raw percentages.
+- Errors thrown from git or zip operations are wrapped as `AppError` with a machine-readable code (e.g. `CLONE_FAILED`, `NOT_A_REPO`, `ZIP_TOO_LARGE`) and a human-readable message.
+- External tool invocations go through `runGit` (with `baseGitArgs` for the working tree) instead of spawning child processes directly, centralizing timeout and stderr handling.

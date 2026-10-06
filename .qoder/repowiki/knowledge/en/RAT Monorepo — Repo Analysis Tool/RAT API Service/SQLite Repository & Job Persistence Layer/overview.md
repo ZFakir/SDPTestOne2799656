@@ -1,0 +1,1 @@
+Provides a WAL-mode SQLite database connection, the RAT schema (repositories, jobs, commits, file stats, authors), and typed repository accessors for the API's persistence needs.

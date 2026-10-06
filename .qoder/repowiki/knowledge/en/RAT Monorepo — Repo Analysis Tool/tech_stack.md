@@ -1,0 +1,1 @@
+Node ≥ 18.18 with npm workspaces; TypeScript 5.5 with a shared `tsconfig.base.json` (strict, ES2022, isolatedModules) consumed by both apps; better-sqlite3 (WAL mode) for the API's fact table; git CLI ≥ 2.30 used by the API for ingestion and by the oracle script.

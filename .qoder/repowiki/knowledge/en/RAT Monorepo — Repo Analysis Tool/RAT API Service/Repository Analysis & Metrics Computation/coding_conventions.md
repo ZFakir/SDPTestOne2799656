@@ -1,0 +1,5 @@
+- SQL queries are built by concatenating string fragments (`buildFiltersSql`, `pathScopeSql`, `COMMIT_SOURCE_SQL`) rather than template literals, keeping WHERE clauses and JOIN sources composable across files.
+- All database mutations go through `db.prepare(...).run()` inside a `db.transaction()` callback, never issuing ad-hoc autocommit writes.
+- Author identity resolution follows a fixed precedence chain — manual merge (`canonical:`) > mailmap (`mailto:`) > raw ident — expressed uniformly via the `AUTHOR_*_SQL` fragments and the `KIND_RANK` map.
+- Public functions accept a `DB` handle and a `repoId` as their first arguments, with optional `filters: MetricFilters` and `scope: PathScope` parameters passed after.
+- Errors thrown from analysis/metrics code are constructed via `AppError` or `badRequest`/`notFound` helpers from `../util/errors` rather than raw `throw new Error`.

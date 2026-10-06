@@ -1,0 +1,3 @@
+- Each script is self-contained with a descriptive top-of-file JSDoc comment documenting purpose, usage, and exit semantics.
+- Scripts resolve the repository root relative to their own location via `path.resolve(__dirname, '..')` rather than relying on CWD.
+- The oracle and fixture builder both treat merge commits as excluded from all metrics while keeping empty commits in the |H| denominator, mirroring the same semantic rule across bash and TypeScript implementations.

@@ -1,0 +1,1 @@
+Bootstraps the Express API server by wiring config, storage, database, job queue, and ingestion pipeline into a single process with graceful shutdown.

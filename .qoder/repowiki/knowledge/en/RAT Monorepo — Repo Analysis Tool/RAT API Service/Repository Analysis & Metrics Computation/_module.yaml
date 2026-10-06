@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: api_service/analysis_and_metrics
+title: Repository Analysis & Metrics Computation
+scope:
+    - apps/api/src/analysis/
+    - apps/api/src/metrics/
+source_files: []
+depends_on: []
+related_to:
+    - path: api_service/db_layer

@@ -1,0 +1,1 @@
+Client-side Next.js dashboard for browsing repository metrics, ingesting Git repos via zip upload or clone URL, and polling ingestion job progress against the RAT backend API.

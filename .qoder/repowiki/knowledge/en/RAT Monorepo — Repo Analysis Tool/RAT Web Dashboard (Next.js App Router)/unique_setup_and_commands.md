@@ -1,0 +1,1 @@
+The app expects a separate backend running at `NEXT_PUBLIC_API_URL` (default `http://localhost:4000`); without it, API calls surface an `ApiError('NETWORK', …)` telling the user to start the API server. Development/build/start use the standard Next scripts (`npm run dev | build | start | typecheck`).

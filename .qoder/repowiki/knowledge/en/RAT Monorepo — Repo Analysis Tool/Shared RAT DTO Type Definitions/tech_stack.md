@@ -1,0 +1,1 @@
+Pure TypeScript type definitions published as a private npm package (`@rat/shared`) with `exports` mapping for TS path resolution.

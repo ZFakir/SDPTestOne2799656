@@ -1,0 +1,13 @@
+schema_version: 1
+module_path: api_service/app_bootstrap
+title: API Server Bootstrap & Shared Utilities
+scope:
+    - apps/api/src/app.ts
+    - apps/api/src/config.ts
+    - apps/api/src/index.ts
+    - apps/api/src/services.ts
+    - apps/api/src/util/
+source_files: []
+depends_on: []
+related_to:
+    - path: api_service/rest_routes

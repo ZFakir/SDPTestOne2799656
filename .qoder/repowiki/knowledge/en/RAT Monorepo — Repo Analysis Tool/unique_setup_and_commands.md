@@ -1,0 +1,1 @@
+Root-level entry points: `npm install` → `npm run dev` (both servers), `npm run build && npm run start:api/start:web`, `npm test` (Jest+supertest against temp SQLite), `npm run typecheck` (both workspaces), `npm run fixture` (deterministic git repo), `npm run verify -- --repo <name>` (independent metrics oracle). Production requires `NEXT_PUBLIC_API_URL` set at web-build time.

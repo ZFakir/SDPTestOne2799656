@@ -1,0 +1,1 @@
+`npm test` runs Jest against `jest.config.js`; the server starts via `node dist/index.js` after `tsc` compilation.

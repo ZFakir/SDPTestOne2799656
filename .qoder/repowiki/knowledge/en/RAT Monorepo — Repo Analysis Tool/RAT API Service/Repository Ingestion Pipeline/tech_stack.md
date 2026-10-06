@@ -1,0 +1,1 @@
+Uses `yauzl` for streaming zip extraction with per-entry size caps and symlink rejection; `git clone --mirror --progress` for full-history cloning; progress is mapped from git's stderr labels (`Counting`/`Compressing`/`Receiving`/`Resolving`) into coarse [0,1] fractions.

@@ -2,6 +2,7 @@ import type { ObjectMetricsDTO, RepoMetricsDTO } from '@rat/shared';
 import type { DB } from '../db/database';
 import { commitSetInfo, type MetricFilters } from './commitSet';
 import { queryObjectSums, type ObjectSums } from './objectMetrics';
+import { hasRollup, isUnfiltered, readRepoRollup } from './rollup';
 
 /**
  * Map raw sums to the full object metric DTO:
@@ -22,8 +23,27 @@ export function toObjectMetricsDTO(sums: ObjectSums, commitCount: number): Objec
   };
 }
 
-/** Repository-wide metrics over the commit set (scope = root, all paths). */
+/**
+ * Repository-wide metrics over the commit set (scope = root, all paths).
+ * Whole-history requests are served from the materialized rollup when it
+ * exists; filtered requests scan the fact table.
+ */
 export function queryRepoMetrics(db: DB, repoId: string, filters: MetricFilters): RepoMetricsDTO {
+  if (isUnfiltered(filters) && hasRollup(db, repoId)) {
+    const rollup = readRepoRollup(db, repoId);
+    if (rollup) {
+      return {
+        ...toObjectMetricsDTO(
+          { added: rollup.added, removed: rollup.removed, modifications: rollup.modifications },
+          rollup.commit_count,
+        ),
+        commitCount: rollup.commit_count,
+        firstTs: rollup.first_ts,
+        lastTs: rollup.last_ts,
+      };
+    }
+  }
+
   const info = commitSetInfo(db, repoId, filters);
   const sums = queryObjectSums(db, repoId, filters, { kind: 'all' });
   return {

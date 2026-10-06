@@ -1,0 +1,1 @@
+Express Router per route module, Zod for request validation via `zod.safeParse`, multer for file uploads, and shared DTO types from the `@rat/shared` package.

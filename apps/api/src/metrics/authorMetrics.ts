@@ -109,7 +109,14 @@ export function resolveAuthors(db: DB, repoId: string): ResolvedAuthors {
     );
 
   const rawIdents = rows
-    .map((row): RawIdentDTO => ({ id: row.raw_ident_id, name: row.raw_name, email: row.raw_email }))
+    .map(
+      (row): RawIdentDTO => ({
+        id: row.raw_ident_id,
+        name: row.raw_name,
+        email: row.raw_email,
+        commitCount: row.commit_count,
+      }),
+    )
     .sort((a, b) => a.name.localeCompare(b.name) || a.email.localeCompare(b.email));
 
   const byId = new Map(authors.map((author) => [author.id, author]));

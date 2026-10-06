@@ -1,11 +1,13 @@
 import type { DB } from '../db/database';
 import { markReady } from '../db/repoStore';
+import { ensureRollup } from '../metrics/rollup';
 
 /**
  * Finalize step of the ingest pipeline: materialize the derived directory list
- * and mark the repository ready. All other data derived from the fact table is
- * computed at query time; `repo_dirs` is the only cache needed (it powers the
- * path picker and directory listings).
+ * and the metric rollups, then mark the repository ready. All other data
+ * derived from the fact table is computed at query time; `repo_dirs` powers
+ * the path picker and directory listings, the rollup tables serve the common
+ * unfiltered dashboard reads without scanning the fact table.
  */
 export function finalizeRepo(
   db: DB,
@@ -20,5 +22,6 @@ export function finalizeRepo(
     for (const dir of rows) insertDir.run(repoId, dir);
   });
   tx();
+  ensureRollup(db, repoId);
   markReady(db, repoId, headSha, commitCount);
 }

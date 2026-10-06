@@ -1,0 +1,4 @@
+- Git commands are invoked through `runGit` with arguments built via `baseGitArgs(gitDir)` plus any command-specific `-c` flags, never by constructing shell strings.
+- Long-running git operations accept a `timeoutMs` option so callers can bound execution time; timeouts resolve with code `-1` and a `[rat] git command timed out` suffix appended to stderr.
+- Streaming stdout/stderr is opt-in via `onStdoutLine`/`onStderrLine` callbacks, with only a bounded tail retained for error reporting when streaming is enabled.
+- Output parsing is done incrementally line-by-line (stream parser pattern) rather than loading full output into memory, matching the format produced by `git log --numstat` with explicit delimiter bytes.

@@ -1,0 +1,1 @@
+`scripts/makeFixtureRepo.sh [dest-dir] [zip-path]` builds the fixture repo (default dest `storage/fixture-repo`); `scripts/fix-native.js` is run as `node scripts/fix-native.js` from the repo root after `npm install --ignore-scripts`; `scripts/verifyMetrics.ts` is invoked via `npm run verify -- --repo <name-or-id> [--api url] [--git-dir path]` against a live RAT API.

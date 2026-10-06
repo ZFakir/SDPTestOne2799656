@@ -1,0 +1,4 @@
+- Cross-cutting dependencies are assembled once in `createServices` and threaded as a single `Services` object rather than imported directly by routes.
+- Route modules receive `services` as their factory argument so they can be mounted under `/api/repositories` or `/api/jobs` without global state.
+- Database accessors live in `db/*` and expose typed row/interface types instead of raw SQL strings inside routes.
+- Errors thrown by services are converted to HTTP responses by the shared `errorHandler` middleware using structured error codes.

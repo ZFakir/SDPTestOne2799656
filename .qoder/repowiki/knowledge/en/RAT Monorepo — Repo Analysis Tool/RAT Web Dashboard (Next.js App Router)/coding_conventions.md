@@ -1,0 +1,6 @@
+- Every client component file starts with the `'use client'` directive before any imports, distinguishing it from server-rendered layout/page files.
+- Data access goes exclusively through SWR hooks in `src/lib/hooks.ts` that wrap methods on the `api` object; components never call `fetch` directly.
+- SWR keys are built as arrays whose first element names the resource (e.g. `['metrics/files', repoId, filterKey(filters), ...]`) and include all query parameters so cache entries are stable across filter changes.
+- Active/busy resources (repositories with queued/processing status, jobs with queued/running status) are polled using a `liveWhile` helper that sets `refreshInterval` to `LIVE_REFRESH_MS` (1500 ms) only while the predicate returns true.
+- API errors are uniformly caught and surfaced via the `ApiError` class carrying `code` and `status`, and displayed through the shared `ErrorBanner` component rather than inline text.
+- Commit-set filtering is centralized: callers pass a `CommitFilters` object, which is serialized by `filtersToParams` and appended to URLs via the `qs` helper, keeping query construction consistent across every metrics endpoint.

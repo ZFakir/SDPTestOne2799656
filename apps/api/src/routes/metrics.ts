@@ -14,7 +14,9 @@ import {
   queryObjectSums,
   queryTimeseries,
   resolvePathScope,
+  type FileMetricAggRow,
 } from '../metrics/objectMetrics';
+import { ensureRollup, isUnfiltered, readFileRollup, readRepoRollup, readTimeseriesRollup } from '../metrics/rollup';
 import { queryRepoMetrics, toObjectMetricsDTO } from '../metrics/setMetrics';
 import { optionalEnum, optionalInt, optionalString, pagingParams } from '../middleware/validate';
 import { requireReadyRepository, type Services } from '../services';
@@ -38,6 +40,44 @@ function segmentCount(path: string): number {
   return path.split('/').length;
 }
 
+/**
+ * Shared ordering for the file table. Both the materialized rollup and the
+ * live aggregates go through this comparator, so their output order is
+ * identical for the same query.
+ */
+function fileComparator(sort: FileSortKey, order: 'asc' | 'desc') {
+  const direction = order === 'asc' ? 1 : -1;
+  return (a: FileMetricRowDTO, b: FileMetricRowDTO): number => {
+    let diff = 0;
+    switch (sort) {
+      case 'path':
+        return direction * a.path.localeCompare(b.path);
+      case 'added':
+        diff = a.added - b.added;
+        break;
+      case 'removed':
+        diff = a.removed - b.removed;
+        break;
+      case 'growth':
+        diff = a.growth - b.growth;
+        break;
+      case 'churn':
+        diff = a.churn - b.churn;
+        break;
+      case 'modifications':
+        diff = a.modifications - b.modifications;
+        break;
+      case 'modificationFrequency':
+        diff = a.modificationFrequency - b.modificationFrequency;
+        break;
+      case 'churnRate':
+        diff = a.churnRate - b.churnRate;
+        break;
+    }
+    return direction * diff || a.path.localeCompare(b.path);
+  };
+}
+
 /** `/api/repositories/:repoId/metrics` — every metric category of the brief. */
 export function metricsRouter(services: Services): Router {
   const { db } = services;
@@ -46,6 +86,9 @@ export function metricsRouter(services: Services): Router {
   router.get('/:repoId/metrics/repository', (req, res) => {
     const repo = requireReadyRepository(services, req.params.repoId);
     const filters = parseMetricFilters(req.query);
+    // Whole-history reads are served from the rollup (built at finalize time,
+    // or lazily for databases that predate the rollup tables).
+    if (isUnfiltered(filters)) ensureRollup(db, repo.id);
     res.json(queryRepoMetrics(db, repo.id, filters));
   });
 
@@ -59,48 +102,27 @@ export function metricsRouter(services: Services): Router {
       optionalEnum(req.query.order, ['asc', 'desc'] as const, 'order') ??
       (sort === 'path' ? 'asc' : 'desc');
 
-    const info = commitSetInfo(db, repo.id, filters);
-    const rows: FileMetricRowDTO[] = queryFileAggregates(db, repo.id, filters, pathPrefix).map(
-      (row) => ({
-        path: row.path,
-        ...toObjectMetricsDTO(
-          { added: row.added, removed: row.removed, modifications: row.modifications },
-          info.commitCount,
-        ),
-      }),
-    );
+    // Aggregate from the rollup for whole-history queries, from the fact
+    // table whenever a filter narrows the commit set.
+    let aggRows: FileMetricAggRow[];
+    let commitCount: number;
+    if (isUnfiltered(filters) && ensureRollup(db, repo.id)) {
+      aggRows = readFileRollup(db, repo.id, pathPrefix) ?? [];
+      commitCount = readRepoRollup(db, repo.id)?.commit_count ?? 0;
+    } else {
+      const info = commitSetInfo(db, repo.id, filters);
+      commitCount = info.commitCount;
+      aggRows = queryFileAggregates(db, repo.id, filters, pathPrefix);
+    }
 
-    const direction = order === 'asc' ? 1 : -1;
-    const compare = (a: FileMetricRowDTO, b: FileMetricRowDTO): number => {
-      let diff = 0;
-      switch (sort) {
-        case 'path':
-          return direction * a.path.localeCompare(b.path);
-        case 'added':
-          diff = a.added - b.added;
-          break;
-        case 'removed':
-          diff = a.removed - b.removed;
-          break;
-        case 'growth':
-          diff = a.growth - b.growth;
-          break;
-        case 'churn':
-          diff = a.churn - b.churn;
-          break;
-        case 'modifications':
-          diff = a.modifications - b.modifications;
-          break;
-        case 'modificationFrequency':
-          diff = a.modificationFrequency - b.modificationFrequency;
-          break;
-        case 'churnRate':
-          diff = a.churnRate - b.churnRate;
-          break;
-      }
-      return direction * diff || a.path.localeCompare(b.path);
-    };
-    rows.sort(compare);
+    const rows: FileMetricRowDTO[] = aggRows.map((row) => ({
+      path: row.path,
+      ...toObjectMetricsDTO(
+        { added: row.added, removed: row.removed, modifications: row.modifications },
+        commitCount,
+      ),
+    }));
+    rows.sort(fileComparator(sort, order));
 
     const items = rows.slice(paging.offset, paging.offset + paging.pageSize);
     res.json({
@@ -108,7 +130,7 @@ export function metricsRouter(services: Services): Router {
       total: rows.length,
       page: paging.page,
       pageSize: paging.pageSize,
-      commitCount: info.commitCount,
+      commitCount,
     } satisfies ListResponse<FileMetricRowDTO>);
   });
 
@@ -190,7 +212,13 @@ export function metricsRouter(services: Services): Router {
     const filters = parseMetricFilters(req.query);
     const bucket = optionalEnum(req.query.bucket, ['day', 'week'] as const, 'bucket') ?? 'day';
     const scope = resolvePathScope(db, repo.id, optionalString(req.query.path));
-    const points = queryTimeseries(db, repo.id, filters, scope, bucket);
+
+    // Whole-history, whole-repository series come from the day rollup.
+    const rollupPoints =
+      isUnfiltered(filters) && scope.kind === 'dir' && scope.path === '' && ensureRollup(db, repo.id)
+        ? readTimeseriesRollup(db, repo.id, bucket)
+        : undefined;
+    const points = rollupPoints ?? queryTimeseries(db, repo.id, filters, scope, bucket);
     res.json({ bucket, points } satisfies TimeseriesResponse);
   });
 
