@@ -1,0 +1,16 @@
+schema_version: 1
+module_path: ""
+title: RAT Monorepo (API + Web Dashboard + Shared DTOs)
+scope:
+    - README.md
+    - Design.md
+    - .gitignore
+    - package.json
+    - package-lock.json
+    - tsconfig.base.json
+    - .env.example
+    - test_brief.pdf
+    - test_brief.txt
+source_files: []
+depends_on: []
+related_to: []

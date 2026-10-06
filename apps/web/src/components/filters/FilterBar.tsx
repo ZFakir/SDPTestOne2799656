@@ -20,6 +20,8 @@ export interface FilterState {
   authorId: string;
   /** '' = whole repository. */
   path: string;
+  /** Explicit commit selection; when non-empty it overrides the range. */
+  commitIds: string[];
 }
 
 export const EMPTY_FILTERS: FilterState = {
@@ -28,16 +30,24 @@ export const EMPTY_FILTERS: FilterState = {
   customTo: '',
   authorId: '',
   path: '',
+  commitIds: [],
 };
 
 /**
  * Compile the filter-bar state into API commit-set filters. Relative presets
  * anchor to the repository's newest commit (`lastTs`), so "last 30 days" means
  * the final 30 days of recorded history.
+ *
+ * An explicit commit selection replaces the range presets entirely — the API
+ * rejects `commitIds` combined with `fromTs`/`toTs`.
  */
 export function buildCommitFilters(state: FilterState, lastTs: number | null): CommitFilters {
   const filters: CommitFilters = {};
   if (state.authorId) filters.authorId = state.authorId;
+  if (state.commitIds.length > 0) {
+    filters.commitIds = state.commitIds;
+    return filters;
+  }
 
   if (state.preset === 'custom') {
     const from = fromDatetimeLocalValue(state.customFrom);
@@ -59,7 +69,11 @@ export function buildCommitFilters(state: FilterState, lastTs: number | null): C
 /** Human summary of the active commit-set filters. */
 export function describeFilters(state: FilterState): string {
   const parts: string[] = [];
-  if (state.preset === 'all') parts.push('all time');
+  if (state.commitIds.length > 0) {
+    parts.push(
+      `${state.commitIds.length} selected commit${state.commitIds.length === 1 ? '' : 's'}`,
+    );
+  } else if (state.preset === 'all') parts.push('all time');
   else if (state.preset === 'custom') {
     const from = state.customFrom || 'start';
     const to = state.customTo || 'latest';
@@ -77,14 +91,24 @@ export function FilterBar({
   onChange,
   authors,
   paths,
+  pickerOpen,
+  onTogglePicker,
 }: {
   state: FilterState;
   onChange: (next: FilterState) => void;
   authors: AuthorsResponse | undefined;
   paths: PathsResponse | undefined;
+  pickerOpen: boolean;
+  onTogglePicker: (open: boolean) => void;
 }) {
+  const hasSelection = state.commitIds.length > 0;
   const dirty =
-    state.preset !== 'all' || state.authorId !== '' || state.path !== '' || state.customFrom !== '' || state.customTo !== '';
+    state.preset !== 'all' ||
+    state.authorId !== '' ||
+    state.path !== '' ||
+    state.customFrom !== '' ||
+    state.customTo !== '' ||
+    hasSelection;
 
   return (
     <form
@@ -100,6 +124,8 @@ export function FilterBar({
           id="filter-preset"
           className="select"
           value={state.preset}
+          disabled={hasSelection}
+          title={hasSelection ? 'A commit selection overrides the range presets' : undefined}
           onChange={(event) => onChange({ ...state, preset: event.target.value as RangePreset })}
         >
           <option value="all">All time</option>
@@ -110,7 +136,7 @@ export function FilterBar({
         </select>
       </div>
 
-      {state.preset === 'custom' ? (
+      {state.preset === 'custom' && !hasSelection ? (
         <>
           <div className="field">
             <label className="field-label" htmlFor="filter-from">
@@ -151,11 +177,49 @@ export function FilterBar({
       />
 
       <div className="field" style={{ minWidth: 0, alignSelf: 'flex-end' }}>
+        {hasSelection ? (
+          <span className="sel-chip">
+            <button
+              type="button"
+              className="sel-chip-label"
+              aria-expanded={pickerOpen}
+              onClick={() => onTogglePicker(!pickerOpen)}
+            >
+              {state.commitIds.length} commit{state.commitIds.length === 1 ? '' : 's'} selected
+            </button>
+            <button
+              type="button"
+              className="sel-chip-clear"
+              aria-label="Clear commit selection"
+              onClick={() => {
+                onTogglePicker(false);
+                onChange({ ...state, commitIds: [] });
+              }}
+            >
+              ×
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            className={`btn ${pickerOpen ? 'btn-secondary' : 'btn-ghost'}`}
+            aria-expanded={pickerOpen}
+            onClick={() => onTogglePicker(!pickerOpen)}
+          >
+            Select commits…
+          </button>
+        )}
+      </div>
+
+      <div className="field" style={{ minWidth: 0, alignSelf: 'flex-end' }}>
         <button
           type="button"
           className="btn btn-ghost"
           disabled={!dirty}
-          onClick={() => onChange({ ...EMPTY_FILTERS })}
+          onClick={() => {
+            onTogglePicker(false);
+            onChange({ ...EMPTY_FILTERS });
+          }}
         >
           Clear filters
         </button>

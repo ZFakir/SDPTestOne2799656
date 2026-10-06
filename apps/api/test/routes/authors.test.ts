@@ -41,9 +41,9 @@ describe('authors API', () => {
     const res = await request(ctx.app).get(`/api/repositories/${REPO_ID}/authors`);
     expect(res.body.rawIdents).toHaveLength(3);
     expect(res.body.rawIdents).toEqual([
-      { id: expect.any(Number), name: 'Alice', email: 'alice@wits.ac.za' },
-      { id: expect.any(Number), name: 'Alice Smith', email: 'alice@example.com' },
-      { id: expect.any(Number), name: 'Bob Beta', email: 'bob@example.com' },
+      { id: expect.any(Number), name: 'Alice', email: 'alice@wits.ac.za', commitCount: 1 },
+      { id: expect.any(Number), name: 'Alice Smith', email: 'alice@example.com', commitCount: 5 },
+      { id: expect.any(Number), name: 'Bob Beta', email: 'bob@example.com', commitCount: 6 },
     ]);
   });
 

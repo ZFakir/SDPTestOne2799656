@@ -839,3 +839,12 @@ Only interactive elements transition, at 150ms ease (color/border) or 300ms cubi
 ### 11.9 Link role note
 
 §10 classifies `{colors.accent-1}` as decorative, but §4 defines the `link` component with `textColor: {colors.accent-1}`. The explicit component spec wins for text links (global `a`, path links, breadcrumbs); no other interactive element reuses the accent beyond chart data marks.
+
+### 11.10 Upper-tier UI: commit picker, author merges, comparison
+
+The upper-tier features extend the same component grammar; all selectors are flagged `PROJECT EXTENSION` in `globals.css`.
+
+- **Selection chip (`.sel-chip`)** — the active commit selection in the filter bar: `{colors.accent-1}` border/text on a 12% accent tint, with a divider-separated `×` clear control that flips to the danger fill/text pair on hover. Range presets are disabled (not hidden) while a selection is active so the override stays visible.
+- **Commit picker (`.picker`)** — a `surface-alt` card matching the filter bar; the scrollable row list uses the canvas fill with 1px `{colors.border-soft}` separators and the row hover/active fills of §11.2 (`rgba(255,255,255,0.04)` / 10% accent tint). Checkboxes use `accent-color: {colors.accent-1}` — the control state §10 left unmeasured — kept off `{colors.primary}` because the picker is in-page filtering, not a CTA.
+- **Author-merge panel (`.merge-panel`)** — a collapsible card: a full-width toggle header (caret + title + summary) over a two-column grid (raw identities vs merge form + active merges, collapsing to one column at 900px). Identity rows reuse the picker row pattern; rows already merged drop to 75% opacity and disable their checkbox. Per-ident chips (`.ident-chip`) are `{rounded.full}` pills with a muted `×` that turns `{colors.danger}` on hover.
+- **Comparison picks (`.compare-picks`)** — the `/compare` repository checklist reuses the picker list geometry; non-ready repositories stay listed at 60% opacity with a disabled checkbox, their status badges carrying the reason. The grouped bar chart is a §11.7 chart card adding the `{colors.accent-1}` series for churn.

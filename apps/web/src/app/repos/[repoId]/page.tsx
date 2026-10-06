@@ -11,8 +11,10 @@ import {
   describeFilters,
   type FilterState,
 } from '@/components/filters/FilterBar';
+import { CommitPicker } from '@/components/filters/CommitPicker';
 import { JobProgress } from '@/components/ingest/JobProgress';
 import { AuthorMetricsTable } from '@/components/metrics/AuthorMetricsTable';
+import { AuthorMergePanel } from '@/components/metrics/AuthorMergePanel';
 import { DirectoryTreeTable } from '@/components/metrics/DirectoryTreeTable';
 import { FileMetricsTable } from '@/components/metrics/FileMetricsTable';
 import { MetricCards } from '@/components/metrics/MetricCards';
@@ -37,6 +39,7 @@ export default function RepoDashboardPage({ params }: { params: { repoId: string
   const { data: repo, error, isLoading, mutate } = useRepository(repoId);
   const [tab, setTab] = useState<Tab>('overview');
   const [filterState, setFilterState] = useState<FilterState>(EMPTY_FILTERS);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const authors = useAuthors(repoId);
   const paths = usePaths(repoId);
@@ -156,7 +159,26 @@ export default function RepoDashboardPage({ params }: { params: { repoId: string
           onChange={setFilterState}
           authors={authors.data}
           paths={paths.data}
+          pickerOpen={pickerOpen}
+          onTogglePicker={setPickerOpen}
         />
+        {pickerOpen ? (
+          <CommitPicker
+            repoId={repoId}
+            selected={filterState.commitIds}
+            onApply={(commitIds) => {
+              setFilterState((prev) => ({
+                ...prev,
+                commitIds,
+                preset: 'all',
+                customFrom: '',
+                customTo: '',
+              }));
+              setPickerOpen(false);
+            }}
+            onClose={() => setPickerOpen(false)}
+          />
+        ) : null}
         <span className="filter-summary">{describeFilters(filterState)}</span>
 
         <div className="tabs" role="tablist" aria-label="Metric views">
@@ -196,7 +218,10 @@ export default function RepoDashboardPage({ params }: { params: { repoId: string
           ) : tab === 'directories' ? (
             <DirectoryTreeTable repoId={repoId} filters={filters} />
           ) : (
-            <AuthorMetricsTable repoId={repoId} filters={filters} path={filterState.path} />
+            <div className="stack">
+              <AuthorMetricsTable repoId={repoId} filters={filters} path={filterState.path} />
+              <AuthorMergePanel repoId={repoId} />
+            </div>
           )}
         </div>
       </div>

@@ -1,0 +1,1 @@
+Express route modules exposing the RAT HTTP API for repositories, authors, commits, jobs, metrics, and paths, backed by shared Zod-based validation and centralized error serialization.

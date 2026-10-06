@@ -1,0 +1,1 @@
+npm-workspaces monorepo wiring an Express RAT API, a Next.js dashboard, shared TypeScript DTO contracts, and standalone fixture/oracle scripts around a single SQLite-backed git metrics engine.

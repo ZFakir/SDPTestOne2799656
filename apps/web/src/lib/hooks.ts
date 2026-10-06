@@ -160,3 +160,32 @@ export function useCommits(
     { keepPreviousData: true },
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Canonical authors (manual merges)                                          */
+/* -------------------------------------------------------------------------- */
+
+export function useCanonicalAuthors(repoId: string | null | undefined) {
+  return useSWR(repoId ? ['authors/canonical', repoId] : null, () =>
+    api.getCanonicalAuthors(repoId as string),
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Multi-repository comparison                                                */
+/* -------------------------------------------------------------------------- */
+
+export interface CompareParams {
+  lastDays?: number;
+  fromTs?: number;
+  toTs?: number;
+}
+
+export function useCompare(repoIds: string[], params: CompareParams = {}) {
+  const enabled = repoIds.length >= 2;
+  return useSWR(
+    enabled ? ['compare', repoIds.join(','), JSON.stringify(params)] : null,
+    () => api.compareRepositories(repoIds, params),
+    { keepPreviousData: true },
+  );
+}

@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: api_service/ingest_pipeline
+title: Repository Ingestion Pipeline
+scope:
+    - apps/api/src/ingest/
+source_files: []
+depends_on: []
+related_to: []

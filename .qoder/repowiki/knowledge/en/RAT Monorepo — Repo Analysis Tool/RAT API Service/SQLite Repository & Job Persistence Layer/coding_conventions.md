@@ -1,4 +1,0 @@
-- Each repository function takes the `DB` instance as its first argument rather than relying on a global, making database access explicit and testable.
-- All SQL strings are written inline with positional `?` placeholders passed as arguments to `prepare().run()` / `.get()` / `.all()`, avoiding string interpolation for values.
-- Row shapes are expressed as TypeScript interfaces (e.g. `RepositoryRow`, `CreateRepositoryInput`) and cast via `as` on query results to keep the DB layer strongly typed.
-- Enumerated column values are constrained both at the SQL level via `CHECK (...) IN (...)` clauses and mirrored in TypeScript union types.

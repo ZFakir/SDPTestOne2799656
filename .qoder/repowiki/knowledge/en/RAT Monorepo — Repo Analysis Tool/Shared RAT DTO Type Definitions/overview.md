@@ -1,1 +1,0 @@
-Type-only shared package exposing the JSON DTO contracts between the RAT Express API and web dashboard, covering repositories, jobs, commits, authors, paths, metrics, and timeseries.

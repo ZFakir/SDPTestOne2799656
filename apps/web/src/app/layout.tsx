@@ -21,6 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </Link>
             <nav className="site-nav" aria-label="Primary">
               <Link href="/">Repositories</Link>
+              <Link href="/compare">Compare</Link>
             </nav>
             <span className="site-header-tag mono">REPO ANALYSIS TOOL</span>
           </div>

@@ -1,4 +1,0 @@
-- DTO interfaces are suffixed with `DTO` (e.g. `RepositoryDTO`, `CommitStatsDTO`, `ObjectMetricsDTO`) to distinguish them from internal domain models.
-- Response envelope types use a `*Response` suffix (e.g. `AuthorsResponse`, `RepositoriesResponse`, `TimeseriesResponse`, `ListResponse<T>`) to wrap paginated or structured payloads.
-- Enum-like values are modeled as string literal union types (e.g. `RepoSourceType`, `RepoStatus`, `JobStatus`, `JobPhase`, `AuthorKind`) rather than `enum` declarations.
-- Timestamp fields are documented as UNIX seconds and typed as `number` (with `null` where the value may be absent), keeping time representation consistent across DTOs.

@@ -1,1 +1,0 @@
-Express-based REST service that wires ingestion, Git analysis, SQLite persistence, and a job queue behind typed route handlers for repository metadata and metrics.

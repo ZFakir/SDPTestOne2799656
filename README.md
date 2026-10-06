@@ -105,9 +105,11 @@ npm test            # Jest + supertest suite for the API (temp SQLite, mocked gi
 npm run typecheck   # tsc --noEmit for both workspaces
 ```
 
-The Jest suite (91 tests) covers the log parser edge cases, the metric-engine
+The Jest suite (114 tests) covers the log parser edge cases, the metric-engine
 math against hand-computed values, every route (success paths, validation 400s,
-unknown-id 404s) and the ingestion lifecycle with mocked pipeline services.
+unknown-id 404s), the canonical author-merge lifecycle, the multi-repo compare
+endpoint, the materialized-rollup/live-path equality, and the ingestion
+lifecycle with mocked pipeline services.
 
 ### Independent oracle (`scripts/verifyMetrics.ts`)
 
@@ -115,7 +117,9 @@ A standalone script that re-derives metrics **straight from git** (its own
 numstat parser — deliberately not reusing the API's code) and diffs the result
 against the running API: repository totals, ts-range and commit-id filters,
 top file, directory subtree, resolved authors (including ownership ≈ churn
-share), the commits listing and the day timeseries.
+share), the commits listing, the day timeseries, the materialized-rollup
+agreement (unfiltered reads vs the live path) and the multi-repo compare
+endpoint.
 
 ```bash
 # With the API running and the repository ingested:
@@ -124,6 +128,7 @@ npm run verify -- --repo cJSON
 
 # Optional flags
 npm run verify -- --repo cJSON --api http://localhost:4000 --git-dir /path/to/repo.git
+npm run verify -- --repo fixture --compare-with cJSON
 ```
 
 Exit code 0 means every check passed; on failure the script prints each
@@ -132,8 +137,9 @@ via `$RAT_STORAGE_DIR` (default `<repo root>/storage`), so if you start the API
 with a custom storage directory, pass the same variable when running the
 oracle.
 
-Reference result: `53/53` checks on the fixture and `67/67` on a full cJSON
-clone, matching the hand-computed values above.
+Reference result: `108/108` checks on the fixture and `122/122` on a full
+cJSON clone, matching the hand-computed values above (the totals include the
+rollup-agreement and compare checks added with the upper-tier features).
 
 ---
 
@@ -159,13 +165,13 @@ clone, matching the hand-computed values above.
 │   │   ├── ingest/               # zip extraction, clone mirror, validation, pipeline, jobs
 │   │   ├── jobs/                 # in-process FIFO queue + job store
 │   │   ├── analysis/             # history analysis (commits → DB), ident resolution
-│   │   ├── metrics/              # commit-set filters + the metric query engine
-│   │   ├── routes/               # repositories, jobs, commits, authors, metrics
+│   │   ├── metrics/              # commit-set filters, engine, materialized rollups
+│   │   ├── routes/               # repositories, jobs, commits, authors, metrics, compare
 │   │   └── middleware/           # validation helpers + structured error handler
 │   └── test/                     # Jest + supertest suites (routes, parser, engine)
 └── apps/web/
     └── src/
-        ├── app/                  # App Router pages (home, repos/[repoId])
+        ├── app/                  # App Router pages (home, repos/[repoId], compare)
         ├── components/           # common, ingest, filters, metrics, charts
         ├── lib/                  # typed API client, SWR hooks, formatting
         └── styles/globals.css    # design tokens + component styles (Design.md)
@@ -182,8 +188,11 @@ clone, matching the hand-computed values above.
   `storage/rat.db`.
 - **Database (SQLite, WAL)** — a single fact table `commit_file_stats`
   (one row per file per commit) plus `repositories`, `commits`, `jobs`,
-  `raw_idents`, and a `canonical_authors` map for manual merges. All metrics are
-  computed at query time from the fact table.
+  `raw_idents` and the manual author-merge map (`canonical_authors` +
+  `author_merges`). Unfiltered reads are served from materialized rollup tables
+  (`rollup_repo`, `rollup_file`, `rollup_day`) built at finalize time — and
+  lazily for databases that predate them; filtered reads stay on the fact
+  table, and the test suite asserts both paths return identical numbers.
 - **Ingestion pipeline** — an in-process FIFO queue (concurrency 1) drives jobs
   through phases: `extracting|cloning → validating → analyzing → finalizing`.
   Analysis streams `git log --no-merges -M50% --numstat` and batches inserts
@@ -192,14 +201,18 @@ clone, matching the hand-computed values above.
   denominator `|H|`; binary and zero-change rows contribute nothing.
 - **Author resolution** — computed at query time with precedence
   manual canonical map > `.mailmap` > raw ident. The stable identity key is
-  `canonical:<id>` or `mailto:<lowercased email>`.
+  `canonical:<id>` or `mailto:<lowercased email>`. Manual merges are managed
+  through the canonical-author endpoints (or the Authors-tab merge panel); a
+  change is reflected in every metrics view immediately.
 - **Metrics engine** — every metric endpoint accepts the same commit-set
   filters (`fromTs`/`toTs` half-open range, `commitIds`, `authorId`) and a path
   scope where relevant. Formulas follow the brief: growth `δ = l⁺ − l⁻`,
   churn `λ = l⁺ + l⁻`, modifications `n_H,o` (distinct commits touching the
   object), frequency `η = n/|H|`, rate `ρ = λ/|H|`, ownership
   `ω = λ_H,o,a / λ_H,o`. Timeseries buckets are UTC days (`YYYY-MM-DD`) or
-  Monday-based weeks (`YYYY-Www`).
+  Monday-based weeks (`YYYY-Www`). The compare endpoint replays the same engine
+  over 2–8 ready repositories — a shared absolute range, or per-repository
+  `lastDays` windows anchored to each repository's own newest commit.
 
 ### Web (Next.js 14 App Router)
 
@@ -208,6 +221,10 @@ clone, matching the hand-computed values above.
 - Dashboard: metric cards, sortable/paged file table, directory breadcrumb
   drill-down (depth 1–5), author table with ownership bars, churn-over-time
   chart (day/week) and a top-files chart whose bars set the path scope.
+- Upper-tier tooling: a manual commit-selection picker (an explicit commit set
+  that overrides the range presets), a collapsible author-merge panel in the
+  Authors tab (create/extend/unmerge canonical authors) and a `/compare` page
+  (up to eight repositories with a metric table and grouped bar chart).
 - All styling comes from `src/styles/globals.css`, implementing the tokens of
   [`Design.md`](Design.md); the gaps the extraction documented (status colors,
   data tables, badges, charts, timings) are filled as project extensions in
@@ -226,16 +243,21 @@ clone, matching the hand-computed values above.
 | `GET /api/repositories/:id/commits` | Commit listing (`q` search, `page`, `pageSize`, commit-set filters). |
 | `GET /api/repositories/:id/commits/:sha/stats` | Per-commit file stats. |
 | `GET /api/repositories/:id/authors` | Resolved authors + raw idents. |
+| `GET /api/repositories/:id/authors/canonical` | List manual author merges. |
+| `POST /api/repositories/:id/authors/canonical` | Create a merge (`name`, `email`, `identIds`). |
+| `PATCH /api/repositories/:id/authors/canonical/:cid` | Rename / replace the ident set (empty set deletes the merge). |
+| `DELETE /api/repositories/:id/authors/canonical/:cid` | Delete a merge (unmerge all idents). |
 | `GET /api/repositories/:id/paths` | All files + directories in history. |
 | `GET /api/repositories/:id/metrics/repository` | Object metrics for the whole repo + `\|H\|`, first/last ts. |
 | `GET /api/repositories/:id/metrics/files` | Per-file metrics (`pathPrefix`, `sort`, `order`, paging). |
 | `GET /api/repositories/:id/metrics/directories` | Subtree metrics (`path`, `depth` 1–5). |
 | `GET /api/repositories/:id/metrics/authors` | Per-author metrics + ownership (`path` scope). |
 | `GET /api/repositories/:id/metrics/timeseries` | `bucket=day\|week` points (`path` scope). |
+| `GET /api/metrics/compare` | Compare 2–8 repositories (`repoIds`, `lastDays` or `fromTs`/`toTs`). |
 
 Errors are structured: `{ "code": "...", "message": "..." }` with codes such as
 `REPO_NOT_FOUND`, `REPO_NOT_READY`, `VALIDATION`, `UPLOAD_NOT_ZIP`,
-`DELETE_ACTIVE_JOB`.
+`DELETE_ACTIVE_JOB`, `CANONICAL_NOT_FOUND`, `IDENT_ALREADY_MERGED`.
 
 ---
 
@@ -269,9 +291,21 @@ Implemented (basic tier):
 - Jest + supertest test suite, deterministic fixture, independent metrics
   oracle.
 
-Deferred (upper tiers, by design): manual commit-selection UI, author-merge UI
-(the API-side canonical map exists), multi-repo comparisons, materialized
-rollups/pre-computation for very large histories.
+Upper tier (deferred in the original basic scope — now implemented):
+
+- Manual commit-selection UI — a commit picker (search, paging, select-page)
+  applies an explicit commit set across every metric view while the range
+  presets are suspended (the API treats `commitIds` and the ts range as
+  mutually exclusive).
+- Author-merge UI — canonical authors managed from the Authors tab (merge
+  selected identities, extend/rename, per-ident unmerge, unmerge all) on top of
+  the canonical map API; merged authors override the mailmap layer everywhere.
+- Multi-repository comparisons — a `/compare` page plus the compare endpoint:
+  2–8 ready repositories over a shared absolute range or per-repo-anchored
+  relative windows, shown as a metric table and a grouped bar chart.
+- Materialized rollups — pre-computed repo/file/day tables built at finalize
+  (self-healing for older databases) serving all unfiltered reads, with tests
+  and the oracle asserting equality with the live fact-table path.
 
 ---
 

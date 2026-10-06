@@ -11,12 +11,23 @@
 - [commits.ts](file://apps/api/src/routes/commits.ts)
 - [authors.ts](file://apps/api/src/routes/authors.ts)
 - [metrics.ts](file://apps/api/src/routes/metrics.ts)
+- [compare.ts](file://apps/api/src/routes/compare.ts)
 - [setMetrics.ts](file://apps/api/src/metrics/setMetrics.ts)
+- [canonicalStore.ts](file://apps/api/src/db/canonicalStore.ts)
 - [api.ts](file://apps/web/src/lib/api.ts)
 - [CloneUrlForm.tsx](file://apps/web/src/components/ingest/CloneUrlForm.tsx)
 - [MetricCards.tsx](file://apps/web/src/components/metrics/MetricCards.tsx)
 - [FilterBar.tsx](file://apps/web/src/components/filters/FilterBar.tsx)
+- [ComparePage.tsx](file://apps/web/src/app/compare/page.tsx)
+- [CompareMetricsChart.tsx](file://apps/web/src/components/metrics/charts/CompareMetricsChart.tsx)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Added new CanonicalAuthorDTO, CanonicalAuthorsResponse, and CanonicalAuthorInput interfaces for manual author merging functionality
+- Introduced CompareRepoDTO and CompareResponse interfaces for multi-repository comparison capabilities
+- Enhanced RawIdentDTO with commitCount field for better identity tracking
+- Updated all related sections to document the new comparison and canonical author features
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -30,7 +41,7 @@
 9. [Conclusion](#conclusion)
 
 ## Introduction
-This document explains the shared TypeScript type definitions that provide contract consistency between the RAT API and the web frontend. The shared package exports only types, so it introduces no runtime dependency while ensuring both layers agree on repository, job, commit, author, path, and metric payloads. It also documents how these types map to the SQLite schema, how discriminated unions and strict numeric typing enforce correctness, and how API routes and frontend components consume them.
+This document explains the shared TypeScript type definitions that provide contract consistency between the RAT API and the web frontend. The shared package exports only types, so it introduces no runtime dependency while ensuring both layers agree on repository, job, commit, author, path, metric, and comparison payloads. It also documents how these types map to the SQLite schema, how discriminated unions and strict numeric typing enforce correctness, and how API routes and frontend components consume them.
 
 ## Project Structure
 The monorepo uses a dedicated `@rat/shared` package as the single source of truth for DTOs:
@@ -51,38 +62,42 @@ end
 subgraph "API Workspace"
 AR["apps/api/src/routes/*.ts"]
 SM["apps/api/src/metrics/setMetrics.ts"]
+CS["apps/api/src/db/canonicalStore.ts"]
 DS["apps/api/src/db/schema.sql"]
 end
 subgraph "Web Workspace"
 WA["apps/web/src/lib/api.ts"]
 WF["apps/web/src/components/**/*.tsx"]
+CP["apps/web/src/app/compare/page.tsx"]
 end
 ST --> SI
 SP --> ST
 AR --> ST
 SM --> ST
+CS --> ST
 WA --> ST
 WF --> WA
+CP --> WA
 DS -. maps to .-> ST
 ```
 
 **Diagram sources**
-- [types.ts:1-226](file://packages/shared/src/types.ts#L1-L226)
+- [types.ts:1-266](file://packages/shared/src/types.ts#L1-L266)
 - [index.ts:1-2](file://packages/shared/src/index.ts#L1-L2)
 - [package.json:1-11](file://packages/shared/package.json#L1-L11)
 - [schema.sql:1-106](file://apps/api/src/db/schema.sql#L1-L106)
 - [repositories.ts:1-166](file://apps/api/src/routes/repositories.ts#L1-L166)
 - [metrics.ts:1-199](file://apps/api/src/routes/metrics.ts#L1-L199)
 - [setMetrics.ts:1-36](file://apps/api/src/metrics/setMetrics.ts#L1-L36)
-- [api.ts:1-269](file://apps/web/src/lib/api.ts#L1-L269)
+- [api.ts:1-326](file://apps/web/src/lib/api.ts#L1-L326)
 
 **Section sources**
-- [types.ts:1-226](file://packages/shared/src/types.ts#L1-L226)
+- [types.ts:1-266](file://packages/shared/src/types.ts#L1-L266)
 - [index.ts:1-2](file://packages/shared/src/index.ts#L1-L2)
 - [package.json:1-11](file://packages/shared/package.json#L1-L11)
 
 ## Core Components
-The shared types are organized around five areas: repositories and jobs, commits and authors, paths, metrics, and common envelopes.
+The shared types are organized around six areas: repositories and jobs, commits and authors, paths, metrics, common envelopes, and multi-repository comparison.
 
 ### Repository and Job Types
 - `RepoSourceType`: `'zip' | 'url'`.
@@ -125,10 +140,10 @@ RepositoryDTO --> JobDTO : "optional latestJob"
 ```
 
 **Diagram sources**
-- [types.ts:12-55](file://packages/shared/src/types.ts#L12-L55)
+- [types.ts:27-55](file://packages/shared/src/types.ts#L27-L55)
 
 **Section sources**
-- [types.ts:12-55](file://packages/shared/src/types.ts#L12-L55)
+- [types.ts:27-55](file://packages/shared/src/types.ts#L27-L55)
 - [schema.sql:5-31](file://apps/api/src/db/schema.sql#L5-L31)
 
 ### Commit and Author Types
@@ -137,7 +152,7 @@ RepositoryDTO --> JobDTO : "optional latestJob"
 - `CommitStatsDTO`: full commit detail including file stats.
 - `AuthorKind`: `'canonical' | 'mailmap' | 'raw'`, describing how an author identity was resolved.
 - `AuthorIdentityDTO`: canonical author with stable `id`, display name/email, resolution kind, commit count, and raw identity merge count.
-- `RawIdentDTO`: raw git identity stored in the database.
+- `RawIdentDTO`: raw git identity stored in the database with enhanced commit counting.
 - `AuthorsResponse`: response containing resolved authors and raw identities.
 
 These types correspond to the `commits`, `commit_file_stats`, `raw_idents`, `mailmap_map`, `canonical_authors`, and `author_merges` tables.
@@ -178,6 +193,7 @@ class RawIdentDTO {
 +number id
 +string name
 +string email
++number commitCount
 }
 class AuthorsResponse {
 +AuthorIdentityDTO[] authors
@@ -189,11 +205,46 @@ AuthorsResponse --> RawIdentDTO : "contains"
 ```
 
 **Diagram sources**
-- [types.ts:61-111](file://packages/shared/src/types.ts#L61-L111)
+- [types.ts:61-113](file://packages/shared/src/types.ts#L61-L113)
 
 **Section sources**
-- [types.ts:61-111](file://packages/shared/src/types.ts#L61-L111)
+- [types.ts:61-113](file://packages/shared/src/types.ts#L61-L113)
 - [schema.sql:33-91](file://apps/api/src/db/schema.sql#L33-L91)
+
+### Canonical Author Types
+New types support manual author merging functionality:
+
+- `CanonicalAuthorDTO`: manually created canonical author with stable `id`, display name/email, and merged raw identity IDs.
+- `CanonicalAuthorsResponse`: response containing array of canonical authors.
+- `CanonicalAuthorInput`: request body for creating/updating canonical author merges.
+
+These types enable users to manually merge multiple raw git identities into a single canonical author identity, improving author attribution accuracy.
+
+```mermaid
+classDiagram
+class CanonicalAuthorDTO {
++string id
++string name
++string email
++number[] identIds
+}
+class CanonicalAuthorsResponse {
++CanonicalAuthorDTO[] authors
+}
+class CanonicalAuthorInput {
++string name
++string email
++number[] identIds
+}
+CanonicalAuthorsResponse --> CanonicalAuthorDTO : "contains"
+```
+
+**Diagram sources**
+- [types.ts:115-133](file://packages/shared/src/types.ts#L115-L133)
+
+**Section sources**
+- [types.ts:115-133](file://packages/shared/src/types.ts#L115-L133)
+- [canonicalStore.ts:1-180](file://apps/api/src/db/canonicalStore.ts#L1-L180)
 
 ### Path Types
 - `PathsResponse`: contains `files` (all file paths ever seen) and `dirs` (directory paths excluding the repository root).
@@ -201,10 +252,10 @@ AuthorsResponse --> RawIdentDTO : "contains"
 This supports UI features such as path pickers and directory-scoped metrics.
 
 **Section sources**
-- [types.ts:117-122](file://packages/shared/src/types.ts#L117-L122)
+- [types.ts:139-144](file://packages/shared/src/types.ts#L139-L144)
 
 ### Metric Types
-The metric types encode the brief’s mathematical model:
+The metric types encode the brief's mathematical model:
 
 - `ObjectMetricsDTO`: core object-level metrics including `added`, `removed`, `growth`, `churn`, `modifications`, `modificationFrequency`, and `churnRate`.
 - `RepoMetricsDTO`: extends object metrics with commit-set size and timestamp bounds.
@@ -283,11 +334,42 @@ TimeseriesResponse --> TimeseriesPointDTO : "points"
 ```
 
 **Diagram sources**
-- [types.ts:128-203](file://packages/shared/src/types.ts#L128-L203)
+- [types.ts:151-225](file://packages/shared/src/types.ts#L151-L225)
 
 **Section sources**
-- [types.ts:128-203](file://packages/shared/src/types.ts#L128-L203)
+- [types.ts:151-225](file://packages/shared/src/types.ts#L151-L225)
 - [setMetrics.ts:1-36](file://apps/api/src/metrics/setMetrics.ts#L1-L36)
+
+### Multi-Repository Comparison Types
+New types support side-by-side comparison of multiple repositories:
+
+- `CompareRepoDTO`: one repository column of a comparison, including repository metadata and metrics.
+- `CompareResponse`: response containing array of compared repositories.
+
+These types enable comparing up to 8 repositories simultaneously, showing their metrics side-by-side for analysis.
+
+```mermaid
+classDiagram
+class CompareRepoDTO {
++string id
++string name
++RepoSourceType sourceType
++string sourceRef
++string headSha
++RepoMetricsDTO metrics
+}
+class CompareResponse {
++CompareRepoDTO[] repos
+}
+CompareResponse --> CompareRepoDTO : "contains"
+```
+
+**Diagram sources**
+- [types.ts:249-260](file://packages/shared/src/types.ts#L249-L260)
+
+**Section sources**
+- [types.ts:249-260](file://packages/shared/src/types.ts#L249-L260)
+- [compare.ts:1-102](file://apps/api/src/routes/compare.ts#L1-L102)
 
 ### Common Envelopes
 - `ListResponse<T>`: paginated list envelope with `items`, `total`, `page`, `pageSize`, and optional `commitCount`.
@@ -297,7 +379,7 @@ TimeseriesResponse --> TimeseriesPointDTO : "points"
 These envelopes standardize pagination and error shapes across endpoints.
 
 **Section sources**
-- [types.ts:209-225](file://packages/shared/src/types.ts#L209-L225)
+- [types.ts:231-265](file://packages/shared/src/types.ts#L231-L265)
 
 ## Architecture Overview
 The shared types form the contract boundary between the API and the frontend. Database rows are converted into DTOs in route handlers; the frontend consumes those DTOs through a typed client helper.
@@ -321,7 +403,7 @@ WebApi-->>Client : Strongly typed response
 ```
 
 **Diagram sources**
-- [api.ts:1-269](file://apps/web/src/lib/api.ts#L1-L269)
+- [api.ts:1-326](file://apps/web/src/lib/api.ts#L1-L326)
 - [repositories.ts:1-166](file://apps/api/src/routes/repositories.ts#L1-L166)
 - [commits.ts:1-131](file://apps/api/src/routes/commits.ts#L1-L131)
 - [metrics.ts:1-199](file://apps/api/src/routes/metrics.ts#L1-L199)
@@ -397,8 +479,8 @@ MapStats --> RespondStats["Return CommitStatsDTO"]
 - [commits.ts:36-92](file://apps/api/src/routes/commits.ts#L36-L92)
 - [commits.ts:94-127](file://apps/api/src/routes/commits.ts#L94-L127)
 
-### Authors and Paths
-The authors endpoint returns resolved canonical authors and raw identities. The paths endpoint is referenced by the frontend but not analyzed here; its response shape is defined by `PathsResponse`.
+### Authors and Canonical Author Management
+The authors endpoint returns resolved canonical authors and raw identities. New canonical author management functionality allows manual merging of author identities.
 
 ```mermaid
 sequenceDiagram
@@ -417,8 +499,36 @@ WebApi-->>UI : AuthorsResponse
 - [authors.ts:11-18](file://apps/api/src/routes/authors.ts#L11-L18)
 
 **Section sources**
-- [authors.ts:1-22](file://apps/api/src/routes/authors.ts#L1-L22)
-- [types.ts:88-122](file://packages/shared/src/types.ts#L88-L122)
+- [authors.ts:1-101](file://apps/api/src/routes/authors.ts#L1-L101)
+- [types.ts:88-133](file://packages/shared/src/types.ts#L88-L133)
+
+### Multi-Repository Comparison
+New comparison functionality enables side-by-side analysis of multiple repositories:
+
+- Compare endpoint accepts 2-8 repository IDs and returns their metrics for direct comparison.
+- Supports relative time windows ("last N days") anchored to each repository's timeline.
+- Frontend provides UI for selecting repositories and visualizing comparison data.
+
+```mermaid
+sequenceDiagram
+participant UI as "ComparePage.tsx"
+participant WebApi as "api.ts"
+participant CompareRoute as "routes/compare.ts"
+UI->>WebApi : compareRepositories([repoIds], params)
+WebApi->>CompareRoute : GET /api/metrics/compare?repoIds=...
+CompareRoute->>CompareRoute : Validate and process repositories
+CompareRoute-->>WebApi : CompareResponse
+WebApi-->>UI : CompareResponse
+```
+
+**Diagram sources**
+- [ComparePage.tsx:45-56](file://apps/web/src/app/compare/page.tsx#L45-L56)
+- [api.ts:313-324](file://apps/web/src/lib/api.ts#L313-L324)
+- [compare.ts:27-98](file://apps/api/src/routes/compare.ts#L27-L98)
+
+**Section sources**
+- [compare.ts:1-102](file://apps/api/src/routes/compare.ts#L1-L102)
+- [types.ts:249-260](file://packages/shared/src/types.ts#L249-L260)
 
 ### Metrics Endpoints
 The metrics router exposes repository-wide metrics, file metrics, directory metrics, author metrics, and timeseries data. All responses conform to shared DTOs.
@@ -456,6 +566,7 @@ The frontend uses shared types to ensure API calls and UI state are consistent w
 - Clone URL form validates input and calls `api.cloneRepository`, receiving `UploadResponse` containing `RepositoryDTO` and `JobDTO`.
 - Metric cards render `RepoMetricsDTO`, formatting growth, churn, modification frequency, and churn rate.
 - Filter bar compiles UI state into `CommitFilters`, which the API client serializes into query parameters consumed by metric endpoints.
+- Compare page enables selection of multiple repositories and displays side-by-side metrics visualization.
 
 ```mermaid
 sequenceDiagram
@@ -478,6 +589,7 @@ Api-->>Form : UploadResponse
 - [MetricCards.tsx:26-88](file://apps/web/src/components/metrics/MetricCards.tsx#L26-L88)
 - [FilterBar.tsx:33-57](file://apps/web/src/components/filters/FilterBar.tsx#L33-L57)
 - [api.ts:84-103](file://apps/web/src/lib/api.ts#L84-L103)
+- [ComparePage.tsx:45-289](file://apps/web/src/app/compare/page.tsx#L45-L289)
 
 ## Dependency Analysis
 The shared package is imported by both workspaces:
@@ -496,7 +608,7 @@ Web_Client --> Shared
 ```
 
 **Diagram sources**
-- [types.ts:1-226](file://packages/shared/src/types.ts#L1-L226)
+- [types.ts:1-266](file://packages/shared/src/types.ts#L1-L266)
 - [repositories.ts:7-21](file://apps/api/src/routes/repositories.ts#L7-L21)
 - [commits.ts:1-14](file://apps/api/src/routes/commits.ts#L1-L14)
 - [metrics.ts:1-21](file://apps/api/src/routes/metrics.ts#L1-L21)
@@ -504,7 +616,7 @@ Web_Client --> Shared
 - [schema.sql:1-106](file://apps/api/src/db/schema.sql#L1-L106)
 
 **Section sources**
-- [types.ts:1-226](file://packages/shared/src/types.ts#L1-L226)
+- [types.ts:1-266](file://packages/shared/src/types.ts#L1-L266)
 - [schema.sql:1-106](file://apps/api/src/db/schema.sql#L1-L106)
 
 ## Performance Considerations
@@ -512,6 +624,8 @@ Web_Client --> Shared
 - Paginated list responses include `commitCount`, enabling accurate rate calculations without additional queries.
 - Directory depth is bounded in the metrics endpoint to avoid excessive tree traversal.
 - Time-series bucketing reduces payload size for charts while preserving temporal aggregation.
+- Multi-repository comparison limits to 8 repositories to prevent excessive computational overhead.
+- Enhanced `RawIdentDTO.commitCount` enables efficient identity analysis without additional database queries.
 
 [No sources needed since this section provides general guidance]
 
@@ -522,19 +636,21 @@ Common issues and how shared types help diagnose them:
 - Missing required fields: Strict interface definitions surface missing properties during development.
 - Incorrect metric formulas: Centralized computation in `toObjectMetricsDTO` ensures consistent derivation of `growth`, `churn`, `modificationFrequency`, and `churnRate`.
 - Frontend-backend mismatch: Because both sides import from `@rat/shared`, structural mismatches are caught at build time rather than runtime.
+- Invalid comparison parameters: Compare endpoint validation ensures proper repository selection and parameter combinations.
 
 When debugging API responses:
 - Inspect the structured `ApiErrorBody` returned by the server.
 - Use the frontend `ApiError` wrapper to access `code`, `status`, and `message`.
 - Verify that list responses include `commitCount` when computing per-commit rates.
+- Check canonical author merge operations for proper identity consolidation.
 
 **Section sources**
 - [types.ts:14-25](file://packages/shared/src/types.ts#L14-L25)
-- [types.ts:222-225](file://packages/shared/src/types.ts#L222-L225)
+- [types.ts:262-265](file://packages/shared/src/types.ts#L262-L265)
 - [api.ts:22-41](file://apps/web/src/lib/api.ts#L22-L41)
 - [setMetrics.ts:11-23](file://apps/api/src/metrics/setMetrics.ts#L11-L23)
 
 ## Conclusion
-The shared TypeScript types in `@rat/shared` are the contract backbone of RAT. They define repository, job, commit, author, path, and metric payloads, map cleanly to the SQLite schema, and eliminate duplication between the API and frontend. Discriminated unions for status and phase fields, strict numeric typing for metrics, and centralized DTO mapping ensure type safety, reduce runtime errors, and keep the monorepo consistent as it evolves.
+The shared TypeScript types in `@rat/shared` are the contract backbone of RAT. They define repository, job, commit, author, path, metric, comparison, and canonical author payloads, map cleanly to the SQLite schema, and eliminate duplication between the API and frontend. Discriminated unions for status and phase fields, strict numeric typing for metrics, and centralized DTO mapping ensure type safety, reduce runtime errors, and keep the monorepo consistent as it evolves. The new comparison and canonical author features extend the system's analytical capabilities while maintaining the same strong typing guarantees.
 
 [No sources needed since this section summarizes without analyzing specific files]

@@ -1,1 +1,0 @@
-npm-workspaces monorepo wiring an Express API, a Next.js dashboard, shared DTO types, and standalone fixture/oracle scripts around a single SQLite-backed git metrics engine.

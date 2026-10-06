@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: api_service/git_layer
+title: Git Process & Log Parsing Layer
+scope:
+    - apps/api/src/git/
+source_files: []
+depends_on: []
+related_to: []

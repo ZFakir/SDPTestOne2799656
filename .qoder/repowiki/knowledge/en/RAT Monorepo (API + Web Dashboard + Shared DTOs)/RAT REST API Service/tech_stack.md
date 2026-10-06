@@ -1,0 +1,1 @@
+Node.js + TypeScript on Express; SQLite (better-sqlite3) for persistence; Jest for tests; git CLI invoked as a subprocess from the Git layer.

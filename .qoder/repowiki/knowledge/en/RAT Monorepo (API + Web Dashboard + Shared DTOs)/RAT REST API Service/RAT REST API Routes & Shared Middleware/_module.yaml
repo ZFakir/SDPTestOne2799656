@@ -1,0 +1,12 @@
+schema_version: 1
+module_path: api_service/rest_routes
+title: RAT REST API Routes & Shared Middleware
+scope:
+    - apps/api/src/routes/
+    - apps/api/src/middleware/
+source_files: []
+depends_on: []
+related_to:
+    - path: scripts_and_storage
+    - path: shared_types
+    - path: web_frontend

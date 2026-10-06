@@ -1,0 +1,1 @@
+Pure TypeScript type package defining the JSON DTO contracts shared between the RAT Express API and web dashboard, covering repositories, jobs, commits, authors, paths, metrics, timeseries, and comparison payloads.

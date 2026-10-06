@@ -1,0 +1,5 @@
+- DTO interfaces are suffixed with `DTO` (e.g. `RepositoryDTO`, `CommitStatsDTO`, `ObjectMetricsDTO`) to distinguish them from internal domain models.
+- API response wrappers use a `*Response` suffix (e.g. `AuthorsResponse`, `RepositoriesResponse`, `TimeseriesResponse`, `CompareResponse`) to wrap structured payloads.
+- Enum-like values are modeled as string literal union types (e.g. `RepoSourceType`, `RepoStatus`, `JobStatus`, `JobPhase`, `AuthorKind`) rather than `enum` declarations.
+- Timestamp fields are documented as UNIX seconds and typed as `number | null` where the value may be absent, keeping time representation consistent across DTOs.
+- Types in `types.ts` are grouped by domain section using comment-block separators and exported directly from the file, with `index.ts` acting as a thin barrel re-exporting everything.

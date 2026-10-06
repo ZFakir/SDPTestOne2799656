@@ -1,1 +1,0 @@
-Ingests a Git repository's full history into SQLite fact tables and computes object/author/repository-level metrics over filtered commit sets.

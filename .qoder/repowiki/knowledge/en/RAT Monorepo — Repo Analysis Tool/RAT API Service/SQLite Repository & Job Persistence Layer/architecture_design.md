@@ -1,5 +1,0 @@
-Three-file leaf module with a clear separation of concerns:
-- `database.ts` is the only entry point that constructs a `better-sqlite3` `Database` instance, configures WAL mode / NORMAL synchronous / foreign keys / busy timeout, and runs `schema.sql` on startup via `db.exec`.
-- `schema.sql` declares all tables (`repositories`, `jobs`, `raw_idents`, `commits`, `commit_file_stats`, `mailmap_map`, `canonical_authors`, `author_merges`, `repo_dirs`) keyed by `repo_id` to support multi-repository isolation, with `ON DELETE CASCADE` foreign keys and indexes on `(repo_id, ts)`, `(repo_id, raw_ident_id)`, `(repo_id, path)`, etc.
-- `repoStore.ts` exposes a small typed CRUD surface over the `repositories` table; it imports the `DB` type alias from `database.ts` but never imports `better-sqlite3` directly, keeping SQL dialect details in one place.
-Dependency direction is strictly downward: consumers depend on this module; this module depends only on `better-sqlite3` and Node's `fs`/`path`. There is no ORM — queries are hand-written parameterized statements using `prepare(...).run/get/all/as`.

@@ -10,15 +10,17 @@
  *
  * It covers: repository totals, commit-set filters (range, commit ids,
  * author), per-file and per-directory metrics, the resolved-author table
- * (including ownership ≈ churn share), the commits listing and the day
- * timeseries. Merge commits are excluded everywhere (matching the pipeline),
- * empty commits stay in |H|, binary rows and zero-change rows contribute
- * nothing.
+ * (including ownership ≈ churn share), the commits listing, the day
+ * timeseries, the materialized-rollup agreement (unfiltered reads vs the live
+ * fact-table path) and the multi-repository compare endpoint. Merge commits
+ * are excluded everywhere (matching the pipeline), empty commits stay in |H|,
+ * binary rows and zero-change rows contribute nothing.
  *
  * Usage:
  *   npm run verify -- --repo cJSON
  *   npm run verify -- --repo fixture --api http://localhost:4000
  *   npm run verify -- --repo cJSON --git-dir /abs/path/to/repo.git
+ *   npm run verify -- --repo fixture --compare-with cJSON
  *
  * Exit code is 0 when every check passes, 1 otherwise (mismatches are printed
  * with expected vs actual values).
@@ -37,6 +39,7 @@ interface CliArgs {
   repo: string;
   api: string;
   gitDir: string | null;
+  compareWith: string | null;
   help: boolean;
 }
 
@@ -45,6 +48,7 @@ function parseArgs(argv: string[]): CliArgs {
     repo: '',
     api: process.env.RAT_API_URL?.trim() || 'http://localhost:4000',
     gitDir: null,
+    compareWith: null,
     help: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -60,6 +64,9 @@ function parseArgs(argv: string[]): CliArgs {
     } else if (flag === '--git-dir') {
       args.gitDir = value ?? null;
       i++;
+    } else if (flag === '--compare-with') {
+      args.compareWith = value ?? null;
+      i++;
     } else {
       throw new Error(`Unknown argument: ${flag}`);
     }
@@ -71,14 +78,16 @@ function printUsage(): void {
   console.log(`RAT metrics oracle
 
 Usage:
-  npm run verify -- --repo <name-or-id> [--api <url>] [--git-dir <path>]
+  npm run verify -- --repo <name-or-id> [--api <url>] [--git-dir <path>] [--compare-with <name-or-id>]
 
 Options:
-  --repo      Repository name or id as shown by GET /api/repositories (required).
-  --api       Base URL of the RAT API (default: RAT_API_URL or http://localhost:4000).
-  --git-dir   Git directory to audit (default: <storage>/repos/<id>/repo.git or the
-              worktree inside <storage>/repos/<id>/src). Storage defaults to
-              $RAT_STORAGE_DIR or <repo root>/storage.
+  --repo          Repository name or id as shown by GET /api/repositories (required).
+  --api           Base URL of the RAT API (default: RAT_API_URL or http://localhost:4000).
+  --git-dir       Git directory to audit (default: <storage>/repos/<id>/repo.git or the
+                  worktree inside <storage>/repos/<id>/src). Storage defaults to
+                  $RAT_STORAGE_DIR or <repo root>/storage.
+  --compare-with  Second repository for the multi-repo compare checks (defaults to
+                  the first other ready repository when one exists).
 `);
 }
 
@@ -797,6 +806,153 @@ async function checkTimeseries(
   report('day commits', dayAgg.commitCount, top.commits);
 }
 
+/** Field-by-field comparison of two repository metric vectors. */
+function reportRepoMetrics(label: string, expected: ApiRepoMetrics, actual: ApiRepoMetrics): void {
+  report(`${label}: |H|`, expected.commitCount, actual.commitCount);
+  report(`${label}: added l+`, expected.added, actual.added);
+  report(`${label}: removed l-`, expected.removed, actual.removed);
+  report(`${label}: growth d`, expected.growth, actual.growth);
+  report(`${label}: churn lambda`, expected.churn, actual.churn);
+  report(`${label}: modifications n`, expected.modifications, actual.modifications);
+  report(
+    `${label}: frequency eta`,
+    expected.modificationFrequency,
+    actual.modificationFrequency,
+    EPS,
+  );
+  report(`${label}: churn rate rho`, expected.churnRate, actual.churnRate, EPS);
+  report(`${label}: firstTs`, expected.firstTs ?? -1, actual.firstTs ?? -1);
+  report(`${label}: lastTs`, expected.lastTs ?? -1, actual.lastTs ?? -1);
+}
+
+/**
+ * The materialized rollups must agree with the live fact-table engine. The
+ * unfiltered request is served from the rollup once it is materialized (the
+ * API builds it on demand); `fromTs=0` selects the same commit set through
+ * the live path — no commit has a negative timestamp — so both responses must
+ * be identical.
+ */
+async function checkRollupAgreement(api: string, repoId: string): Promise<void> {
+  section('Materialized rollups (unfiltered vs live path)');
+  const rolled = await apiGet<ApiRepoMetrics>(api, `/api/repositories/${repoId}/metrics/repository`);
+  const live = await apiGet<ApiRepoMetrics>(
+    api,
+    `/api/repositories/${repoId}/metrics/repository?fromTs=0`,
+  );
+  reportRepoMetrics('repository rollup vs live', live, rolled);
+
+  const rolledFiles = await apiGet<ApiList<ApiFileRow>>(
+    api,
+    `/api/repositories/${repoId}/metrics/files?sort=churn&order=desc&pageSize=25`,
+  );
+  const liveFiles = await apiGet<ApiList<ApiFileRow>>(
+    api,
+    `/api/repositories/${repoId}/metrics/files?sort=churn&order=desc&pageSize=25&fromTs=0`,
+  );
+  report('files rollup vs live: total', liveFiles.total, rolledFiles.total);
+  report(
+    'files rollup vs live: rows',
+    JSON.stringify(liveFiles.items),
+    JSON.stringify(rolledFiles.items),
+  );
+
+  const rolledSeries = await apiGet<{ points: ApiTimeseriesPoint[] }>(
+    api,
+    `/api/repositories/${repoId}/metrics/timeseries?bucket=day`,
+  );
+  const liveSeries = await apiGet<{ points: ApiTimeseriesPoint[] }>(
+    api,
+    `/api/repositories/${repoId}/metrics/timeseries?bucket=day&fromTs=0`,
+  );
+  report(
+    'day timeseries rollup vs live',
+    JSON.stringify(liveSeries.points),
+    JSON.stringify(rolledSeries.points),
+  );
+
+  const rolledWeek = await apiGet<{ points: ApiTimeseriesPoint[] }>(
+    api,
+    `/api/repositories/${repoId}/metrics/timeseries?bucket=week`,
+  );
+  const liveWeek = await apiGet<{ points: ApiTimeseriesPoint[] }>(
+    api,
+    `/api/repositories/${repoId}/metrics/timeseries?bucket=week&fromTs=0`,
+  );
+  report(
+    'week timeseries rollup vs live',
+    JSON.stringify(liveWeek.points),
+    JSON.stringify(rolledWeek.points),
+  );
+}
+
+/** The multi-repository compare endpoint must mirror the single-repo reads. */
+async function checkCompare(
+  api: string,
+  primary: ApiRepository,
+  all: ApiRepository[],
+  compareWith: string | null,
+): Promise<void> {
+  section('Multi-repository compare');
+  let other: ApiRepository | undefined;
+  if (compareWith) {
+    other =
+      all.find((candidate) => candidate.id === compareWith) ??
+      all.find((candidate) => candidate.name === compareWith) ??
+      all.find((candidate) => candidate.name.toLowerCase() === compareWith.toLowerCase());
+    if (!other) throw new Error(`--compare-with: no repository named "${compareWith}"`);
+  } else {
+    other = all.find((candidate) => candidate.id !== primary.id && candidate.status === 'ready');
+  }
+  if (!other) {
+    console.log('  SKIP  no second ready repository (pass --compare-with <name-or-id>)');
+    return;
+  }
+  if (other.status !== 'ready') {
+    console.log(`  SKIP  "${other.name}" is in status "${other.status}"`);
+    return;
+  }
+  console.log(`  info  comparing ${primary.name} vs ${other.name}`);
+
+  const compare = await apiGet<{ repos: Array<{ id: string; metrics: ApiRepoMetrics }> }>(
+    api,
+    `/api/metrics/compare?repoIds=${primary.id},${other.id}`,
+  );
+  report(
+    'compare returns two columns in request order',
+    `${primary.id},${other.id}`,
+    compare.repos.map((entry) => entry.id).join(','),
+  );
+
+  for (const entry of compare.repos) {
+    const single = await apiGet<ApiRepoMetrics>(
+      api,
+      `/api/repositories/${entry.id}/metrics/repository`,
+    );
+    reportRepoMetrics(`compare ${entry.id}`, single, entry.metrics);
+  }
+
+  // lastDays windows must anchor to each repository's own newest commit.
+  const lastDays = 30;
+  const windowed = await apiGet<{ repos: Array<{ id: string; metrics: ApiRepoMetrics }> }>(
+    api,
+    `/api/metrics/compare?repoIds=${primary.id},${other.id}&lastDays=${lastDays}`,
+  );
+  for (const entry of windowed.repos) {
+    const base = await apiGet<ApiRepoMetrics>(
+      api,
+      `/api/repositories/${entry.id}/metrics/repository`,
+    );
+    const expected =
+      base.lastTs === null
+        ? base
+        : await apiGet<ApiRepoMetrics>(
+            api,
+            `/api/repositories/${entry.id}/metrics/repository?fromTs=${base.lastTs - lastDays * DAY}&toTs=${base.lastTs + 1}`,
+          );
+    reportRepoMetrics(`compare lastDays anchored ${entry.id}`, expected, entry.metrics);
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /* Main                                                                       */
 /* -------------------------------------------------------------------------- */
@@ -850,6 +1006,8 @@ async function main(): Promise<void> {
   await checkDirectories(api, repo.id, commits, full, fullMetrics);
   await checkAuthorMetrics(api, repo.id, commits, full);
   await checkTimeseries(api, repo.id, commits, full);
+  await checkRollupAgreement(api, repo.id);
+  await checkCompare(api, repo, list.repositories, args.compareWith);
 
   console.log(`\n${totalChecks - failedChecks}/${totalChecks} checks passed`);
   if (failedChecks > 0) {

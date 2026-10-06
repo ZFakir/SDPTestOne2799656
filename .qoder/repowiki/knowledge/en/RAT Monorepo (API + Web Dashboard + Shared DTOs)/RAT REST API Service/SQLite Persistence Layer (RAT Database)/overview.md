@@ -1,0 +1,1 @@
+WAL-mode SQLite persistence for the RAT analysis engine, providing schema initialization and typed repository/canonical-author accessors over repositories, jobs, commits, file stats, authors, and rollup tables.

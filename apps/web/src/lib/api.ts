@@ -1,8 +1,11 @@
 import type {
   AuthorMetricsResponse,
   AuthorsResponse,
+  CanonicalAuthorInput,
+  CanonicalAuthorsResponse,
   CommitListItem,
   CommitStatsDTO,
+  CompareResponse,
   DirectoryMetricsDTO,
   FileMetricRowDTO,
   JobDTO,
@@ -264,5 +267,59 @@ export const api = {
   ): Promise<TimeseriesResponse> {
     const params = { ...filtersToParams(filters), bucket: opts.bucket, path: opts.path };
     return request(`/api/repositories/${encode(repoId)}/metrics/timeseries${qs(params)}`);
+  },
+
+  /* ------------------------------------------------------------------ */
+  /* Canonical authors (manual merges)                                   */
+  /* ------------------------------------------------------------------ */
+
+  getCanonicalAuthors(repoId: string): Promise<CanonicalAuthorsResponse> {
+    return request(`/api/repositories/${encode(repoId)}/authors/canonical`);
+  },
+
+  createCanonicalAuthor(
+    repoId: string,
+    input: CanonicalAuthorInput,
+  ): Promise<CanonicalAuthorsResponse> {
+    return request(`/api/repositories/${encode(repoId)}/authors/canonical`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+  },
+
+  updateCanonicalAuthor(
+    repoId: string,
+    canonicalId: string,
+    patch: Partial<CanonicalAuthorInput>,
+  ): Promise<CanonicalAuthorsResponse> {
+    return request(`/api/repositories/${encode(repoId)}/authors/canonical/${encode(canonicalId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+  },
+
+  deleteCanonicalAuthor(repoId: string, canonicalId: string): Promise<CanonicalAuthorsResponse> {
+    return request(`/api/repositories/${encode(repoId)}/authors/canonical/${encode(canonicalId)}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /* ------------------------------------------------------------------ */
+  /* Multi-repository comparison                                         */
+  /* ------------------------------------------------------------------ */
+
+  compareRepositories(
+    repoIds: string[],
+    opts: { lastDays?: number; fromTs?: number; toTs?: number } = {},
+  ): Promise<CompareResponse> {
+    const params = {
+      repoIds: repoIds.join(','),
+      lastDays: opts.lastDays,
+      fromTs: opts.fromTs,
+      toTs: opts.toTs,
+    };
+    return request(`/api/metrics/compare${qs(params)}`);
   },
 };

@@ -1,0 +1,1 @@
+Express-based RAT service that wires Git ingestion, analysis, SQLite persistence, and a job queue behind typed route handlers for repository metadata and metrics.

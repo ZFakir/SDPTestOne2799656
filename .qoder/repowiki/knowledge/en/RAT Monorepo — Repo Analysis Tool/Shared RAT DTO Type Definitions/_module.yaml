@@ -1,8 +1,0 @@
-schema_version: 1
-module_path: shared_types
-title: Shared RAT DTO Type Definitions
-scope:
-    - packages/shared/
-source_files: []
-depends_on: []
-related_to: []

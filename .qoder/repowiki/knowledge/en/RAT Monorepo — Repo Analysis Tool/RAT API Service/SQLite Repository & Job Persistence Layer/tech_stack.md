@@ -1,1 +1,0 @@
-SQLite via `better-sqlite3` with WAL journaling, NORMAL synchronous durability, and foreign-key enforcement; schema is pure SQL applied at runtime.

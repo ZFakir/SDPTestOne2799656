@@ -1,0 +1,1 @@
+TypeScript-only package published as a private npm package (`private: true`) with `exports` mapping for TS path resolution; consumed as a type-only dependency by sibling workspaces.

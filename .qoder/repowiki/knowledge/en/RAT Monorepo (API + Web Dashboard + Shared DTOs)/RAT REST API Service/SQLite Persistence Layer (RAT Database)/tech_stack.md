@@ -1,0 +1,1 @@
+SQLite via `better-sqlite3` configured with WAL journaling, NORMAL synchronous durability, enforced foreign keys, and a 5-second busy timeout; schema is pure SQL applied at runtime from `schema.sql`.

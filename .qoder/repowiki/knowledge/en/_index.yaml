@@ -3,11 +3,11 @@ schema_version: 1
 locale: en-US
 branch: main
 nodes_managed: true
-exported_at: "2026-10-06T14:10:59Z"
+exported_at: "2026-10-06T14:28:13Z"
 modules:
     "":
-        dir_name: RAT Monorepo — Repo Analysis Tool
-        title: RAT Monorepo — Repo Analysis Tool
+        dir_name: RAT Monorepo (API + Web Dashboard + Shared DTOs)
+        title: RAT Monorepo (API + Web Dashboard + Shared DTOs)
         scope:
             - README.md
             - Design.md
@@ -27,8 +27,8 @@ modules:
         depends_on: []
         related_to: []
     api_service:
-        dir_name: RAT API Service
-        title: RAT API Service
+        dir_name: RAT REST API Service
+        title: RAT REST API Service
         scope:
             - apps/api/
         source_files: []
@@ -42,8 +42,8 @@ modules:
         depends_on: []
         related_to: []
     api_service/analysis_and_metrics:
-        dir_name: Repository Analysis & Metrics Computation
-        title: Repository Analysis & Metrics Computation
+        dir_name: Git History Ingestion & Metrics Computation
+        title: Git History Ingestion & Metrics Computation
         scope:
             - apps/api/src/analysis/
             - apps/api/src/metrics/
@@ -51,7 +51,7 @@ modules:
         children: []
         depends_on: []
         related_to:
-            - path: api_service/db_layer
+            - path: scripts_and_storage
     api_service/app_bootstrap:
         dir_name: API Server Bootstrap & Shared Utilities
         title: API Server Bootstrap & Shared Utilities
@@ -64,18 +64,16 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: api_service/rest_routes
+        related_to: []
     api_service/db_layer:
-        dir_name: SQLite Repository & Job Persistence Layer
-        title: SQLite Repository & Job Persistence Layer
+        dir_name: SQLite Persistence Layer (RAT Database)
+        title: SQLite Persistence Layer (RAT Database)
         scope:
             - apps/api/src/db/
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: api_service/analysis_and_metrics
+        related_to: []
     api_service/git_layer:
         dir_name: Git Process & Log Parsing Layer
         title: Git Process & Log Parsing Layer
@@ -84,8 +82,7 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: api_service/ingest_pipeline
+        related_to: []
     api_service/ingest_pipeline:
         dir_name: Repository Ingestion Pipeline
         title: Repository Ingestion Pipeline
@@ -94,11 +91,10 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: api_service/git_layer
+        related_to: []
     api_service/rest_routes:
-        dir_name: REST API Routes & Middleware
-        title: REST API Routes & Middleware
+        dir_name: RAT REST API Routes & Shared Middleware
+        title: RAT REST API Routes & Shared Middleware
         scope:
             - apps/api/src/routes/
             - apps/api/src/middleware/
@@ -106,8 +102,8 @@ modules:
         children: []
         depends_on: []
         related_to:
-            - path: api_service/app_bootstrap
             - path: scripts_and_storage
+            - path: shared_types
             - path: web_frontend
     scripts_and_storage:
         dir_name: Repository Fixtures, Metrics Oracle & Native-Binding Recovery Scripts
@@ -118,16 +114,19 @@ modules:
         children: []
         depends_on: []
         related_to:
+            - path: api_service/analysis_and_metrics
             - path: api_service/rest_routes
     shared_types:
-        dir_name: Shared RAT DTO Type Definitions
-        title: Shared RAT DTO Type Definitions
+        dir_name: Shared DTO Type Contracts (@rat_shared)
+        title: Shared DTO Type Contracts (@rat/shared)
         scope:
             - packages/shared/
         source_files: []
         children: []
         depends_on: []
-        related_to: []
+        related_to:
+            - path: api_service/rest_routes
+            - path: web_frontend
     web_frontend:
         dir_name: RAT Web Dashboard (Next.js App Router)
         title: RAT Web Dashboard (Next.js App Router)
@@ -138,3 +137,4 @@ modules:
         depends_on: []
         related_to:
             - path: api_service/rest_routes
+            - path: shared_types

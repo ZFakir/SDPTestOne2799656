@@ -1,0 +1,6 @@
+- Each store function takes the `DB` instance as its first argument rather than importing a global, making database access explicit and testable.
+- All SQL strings use positional `?` placeholders passed as arguments to `prepare().run()` / `.get()` / `.all()`, avoiding string interpolation for values.
+- Row shapes are declared as local TypeScript interfaces (e.g. `RepositoryRow`, `CanonicalRow`) and query results are cast via `as` to keep the DB layer strongly typed.
+- Enumerated column values are constrained both in SQL via `CHECK (...) IN (...)` clauses and mirrored in TypeScript union types (e.g. `'queued' | 'processing' | 'ready' | 'error'`).
+- Multi-row mutations that must be atomic are wrapped in `db.transaction(() => { ... })` blocks (used in `createCanonicalAuthor` and `updateCanonicalAuthor`).
+- Cross-table referential integrity is enforced declaratively with `REFERENCES ... ON DELETE CASCADE` in the schema rather than ad-hoc delete logic in the stores.

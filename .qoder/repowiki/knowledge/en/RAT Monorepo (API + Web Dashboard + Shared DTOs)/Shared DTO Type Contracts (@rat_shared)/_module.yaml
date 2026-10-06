@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: shared_types
+title: Shared DTO Type Contracts (@rat/shared)
+scope:
+    - packages/shared/
+source_files: []
+depends_on: []
+related_to:
+    - path: api_service/rest_routes
+    - path: web_frontend
